@@ -1,0 +1,11 @@
+services:
+  harlie-git-proxy:
+    build: .
+    ports:
+      - "3010:3010"
+    environment:
+      HARLIE_GIT_PROXY_BIND: 0.0.0.0:3010
+      HARLIE_GIT_PROXY_SCM_URL: http://harlie-scm:3009
+      HARLIE_GIT_PROXY_SCM_TOKEN: dev-service-token
+      HARLIE_GIT_PROXY_REDIS_URL: redis://redis:6379
+      HARLIE_GIT_PROXY_JWT_PUBLIC_KEY: ${HARLIE_GIT_PROXY_JWT_PUBLIC_KEY:-}

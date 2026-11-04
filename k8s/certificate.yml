@@ -1,0 +1,20 @@
+# Internal-CA certificate for the in-cluster git proxy. The CA is created by
+# issuer.yml; workers copy the CA cert into build namespaces as
+# `harlie-git-proxy-ca`.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: harlie-git-proxy-tls
+  namespace: harlie
+spec:
+  secretName: harlie-git-proxy-tls
+  duration: 8760h
+  renewBefore: 720h
+  dnsNames:
+    - harlie-git-proxy
+    - harlie-git-proxy.harlie
+    - harlie-git-proxy.harlie.svc
+    - harlie-git-proxy.harlie.svc.cluster.local
+  issuerRef:
+    name: harlie-ca-issuer
+    kind: Issuer

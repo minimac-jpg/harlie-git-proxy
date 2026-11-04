@@ -1,0 +1,7 @@
+/target
+/keys
+*.pem
+*.crt
+*.key
+kubeconfig*
+*.backup*

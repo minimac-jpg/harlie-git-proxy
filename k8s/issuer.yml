@@ -1,0 +1,36 @@
+# Internal CA for in-cluster git proxy TLS. Let's Encrypt cannot issue for
+# *.svc.cluster.local, so bootstrap a self-signed CA with cert-manager.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: harlie-selfsigned
+  namespace: harlie
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: harlie-ca
+  namespace: harlie
+spec:
+  isCA: true
+  commonName: harlie-internal-ca
+  secretName: harlie-ca
+  duration: 87600h
+  renewBefore: 720h
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: harlie-selfsigned
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: harlie-ca-issuer
+  namespace: harlie
+spec:
+  ca:
+    secretName: harlie-ca

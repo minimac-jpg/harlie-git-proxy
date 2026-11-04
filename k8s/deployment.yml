@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: harlie-git-proxy
+  namespace: harlie
+  labels:
+    app: harlie-git-proxy
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: harlie-git-proxy
+  template:
+    metadata:
+      labels:
+        app: harlie-git-proxy
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: tls
+          secret:
+            secretName: harlie-git-proxy-tls
+      containers:
+        - name: harlie-git-proxy
+          image: ghcr.io/OWNER/harlie-git-proxy:IMAGE_TAG
+          env:
+            - name: HARLIE_GIT_PROXY_BIND
+              value: "0.0.0.0:3010"
+            - name: HARLIE_GIT_PROXY_SCM_URL
+              value: "http://harlie-scm:3009"
+            - name: HARLIE_GIT_PROXY_REDIS_URL
+              value: "redis://redis:6379"
+            - name: HARLIE_GIT_PROXY_SCM_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: harlie-secrets
+                  key: scm_callers
+            - name: HARLIE_GIT_PROXY_JWT_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: harlie-secrets
+                  key: git_proxy_public_key
+            - name: HARLIE_GIT_PROXY_AUDIENCE
+              value: "harlie-git-proxy"
+            - name: HARLIE_GIT_PROXY_TLS_CERT_PATH
+              value: "/tls/tls.crt"
+            - name: HARLIE_GIT_PROXY_TLS_KEY_PATH
+              value: "/tls/tls.key"
+          volumeMounts:
+            - name: tls
+              mountPath: /tls
+              readOnly: true
+          ports:
+            - containerPort: 3010
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3010
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3010
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "1"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: harlie-git-proxy
+  namespace: harlie
+  labels:
+    app: harlie-git-proxy
+spec:
+  selector:
+    app: harlie-git-proxy
+  ports:
+    - name: https
+      port: 3010
+      targetPort: 3010

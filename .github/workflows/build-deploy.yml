@@ -1,0 +1,97 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [main]
+
+env:
+  SERVICE: harlie-git-proxy
+  IMAGE: ghcr.io/${{ github.repository_owner }}/harlie-git-proxy
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: harlie
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: harlie
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U harlie"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://harlie@127.0.0.1:5432/harlie
+    steps:
+      - uses: actions/checkout@v5
+      - name: Env wiring check
+        run: sh scripts/check-env.sh
+      - uses: dtolnay/rust-toolchain@1.96.0
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: azure/setup-kubectl@v5
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.K3S_KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+      - name: Deploy to k3s
+        run: |
+          cd k8s
+          OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          kubectl kustomize . | \
+            sed -e "s|IMAGE_TAG|${{ github.sha }}|g" \
+                -e "s|ghcr.io/OWNER/|ghcr.io/${OWNER_LC}/|g" \
+            | kubectl apply -f -
+      - name: Wait for proxy rollout
+        run: kubectl -n harlie rollout status deployment/harlie-git-proxy --timeout=240s
+      - name: Publish git proxy CA secret
+        run: |
+          kubectl -n harlie wait --for=condition=Ready certificate/harlie-ca --timeout=240s
+          kubectl -n harlie wait --for=condition=Ready certificate/harlie-git-proxy-tls --timeout=240s
+          kubectl -n harlie get secret harlie-ca -o jsonpath='{.data.tls\.crt}' | base64 -d > /tmp/harlie-ca.crt
+          kubectl -n harlie create secret generic harlie-git-proxy-ca \
+            --from-file=ca.crt=/tmp/harlie-ca.crt \
+            --dry-run=client -o yaml | kubectl apply -f -

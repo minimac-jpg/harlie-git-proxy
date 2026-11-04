@@ -1,0 +1,6 @@
+bind = "0.0.0.0:3010"
+audience = "harlie-git-proxy"
+upstream_base = "https://github.com"
+max_body_bytes = 67108864
+request_timeout_secs = 900
+redis_url = "redis://redis:6379"

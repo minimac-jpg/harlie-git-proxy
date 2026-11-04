@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "git.proxy.access",
+  "description": "Audit event published as an audit.record payload for each git/LFS proxy request. Must never contain a GitHub token or proxy JWT.",
+  "type": "object",
+  "required": ["id", "tenant_id", "event", "actor", "action", "resource", "outcome", "scope", "correlation", "metadata", "occurred_at"],
+  "properties": {
+    "event": { "type": "object", "properties": { "name": { "const": "git.proxy.access" } } },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "details": {
+          "type": "object",
+          "properties": {
+            "task_id": { "type": "string" },
+            "permission": { "enum": ["read", "write"] },
+            "path": { "type": "string" },
+            "status": { "type": "integer" }
+          }
+        }
+      }
+    }
+  }
+}
