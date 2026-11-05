@@ -95,9 +95,6 @@ metadata:
   labels:
     app: harlie-git-proxy
 spec:
-  # Headless: workers connect directly to the proxy pod IP, avoiding
-  # ClusterIP/kube-proxy routing issues across tenant namespaces.
-  clusterIP: None
   selector:
     app: harlie-git-proxy
   ports:
