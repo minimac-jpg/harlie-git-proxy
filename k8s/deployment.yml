@@ -46,7 +46,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: harlie-secrets
-                  key: scm_callers
+                  key: git_proxy_token
             - name: HARLIE_GIT_PROXY_JWT_PUBLIC_KEY
               valueFrom:
                 secretKeyRef:
