@@ -44,7 +44,7 @@ impl TokenVerifier {
     pub fn verify(&self, token: &str) -> Result<Claims, String> {
         decode::<Claims>(token, &self.key, &self.validation)
             .map(|data| data.claims)
-            .map_err(|_| "invalid or expired git proxy token".to_string())
+            .map_err(|error| format!("git proxy token rejected: {error}"))
     }
 }
 

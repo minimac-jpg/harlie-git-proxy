@@ -122,12 +122,28 @@ async fn handle(
 ) -> Response {
     let token = match crate::token::token_from_headers(&headers) {
         Some(token) => token,
-        None => return error(StatusCode::UNAUTHORIZED, "missing git proxy credential"),
+        None => {
+            tracing::warn!("git proxy request rejected: missing credential");
+            return error(StatusCode::UNAUTHORIZED, "missing git proxy credential");
+        }
     };
     let claims = match state.verifier.verify(&token) {
         Ok(claims) => claims,
-        Err(message) => return error(StatusCode::UNAUTHORIZED, message),
+        Err(message) => {
+            tracing::warn!(error = %message, "git proxy request rejected: invalid credential");
+            return error(
+                StatusCode::UNAUTHORIZED,
+                "invalid or expired git proxy credential",
+            );
+        }
     };
+    tracing::debug!(
+        tenant_id = %claims.tenant_id,
+        task_id = %claims.task_id,
+        repo_id = %claims.repo_id,
+        audience = %claims.aud,
+        "git proxy credential accepted"
+    );
 
     let (repo_id, full_name) = match resolve_repo(&state, &claims, &repo_ref).await {
         Ok(value) => value,
