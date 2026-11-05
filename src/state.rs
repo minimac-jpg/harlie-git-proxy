@@ -21,7 +21,7 @@ impl AppState {
             config.scm_url.as_deref().unwrap_or_default(),
             config.scm_token.clone(),
         );
-        let audit = AuditPublisher::new(config.redis_url.as_deref()).await?;
+        let audit = AuditPublisher::new(config.redis_url.as_deref()).await;
         let http = reqwest::Client::builder()
             .connect_timeout(std::time::Duration::from_secs(15))
             .timeout(std::time::Duration::from_secs(config.request_timeout_secs))

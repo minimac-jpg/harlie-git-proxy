@@ -8,21 +8,26 @@ pub struct AuditPublisher {
 }
 
 impl AuditPublisher {
-    pub async fn new(redis_url: Option<&str>) -> Result<Self, String> {
+    /// Audit delivery is best-effort. A Redis outage must never take the git
+    /// proxy down or block builds.
+    pub async fn new(redis_url: Option<&str>) -> Self {
         let conn = match redis_url.map(str::trim).filter(|url| !url.is_empty()) {
-            Some(url) => {
-                let client = redis::Client::open(url)
-                    .map_err(|error| format!("invalid audit redis url: {error}"))?;
-                Some(
-                    client
-                        .get_connection_manager()
-                        .await
-                        .map_err(|error| format!("audit redis connect failed: {error}"))?,
-                )
-            }
+            Some(url) => match redis::Client::open(url) {
+                Ok(client) => match client.get_connection_manager().await {
+                    Ok(conn) => Some(conn),
+                    Err(error) => {
+                        tracing::warn!(error = %error, "git proxy audit redis unavailable; audit disabled");
+                        None
+                    }
+                },
+                Err(error) => {
+                    tracing::warn!(error = %error, "invalid git proxy audit redis url; audit disabled");
+                    None
+                }
+            },
             None => None,
         };
-        Ok(Self { conn })
+        Self { conn }
     }
 
     pub async fn publish(&self, payload: Value, tenant_id: Uuid) {
