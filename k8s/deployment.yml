@@ -68,12 +68,14 @@ spec:
             httpGet:
               path: /health
               port: 3010
+              scheme: HTTPS
             initialDelaySeconds: 5
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /health
               port: 3010
+              scheme: HTTPS
             initialDelaySeconds: 3
             periodSeconds: 5
           resources:
