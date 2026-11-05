@@ -386,5 +386,20 @@ fn safe_response_header(name: &str) -> bool {
 }
 
 fn error(status: StatusCode, message: impl Into<String>) -> Response {
-    (status, axum::Json(json!({ "error": message.into() }))).into_response()
+    let mut builder = Response::builder()
+        .status(status)
+        .header(axum::http::header::CONTENT_TYPE, "application/json");
+    if status == StatusCode::UNAUTHORIZED {
+        // Git consults its credential helper after a 401 only when the
+        // response advertises an auth scheme.
+        builder = builder.header(
+            axum::http::header::WWW_AUTHENTICATE,
+            "Basic realm=\"harlie-git-proxy\"",
+        );
+    }
+    builder
+        .body(axum::body::Body::from(
+            json!({ "error": message.into() }).to_string(),
+        ))
+        .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
 }
