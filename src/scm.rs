@@ -31,6 +31,18 @@ pub struct ScmClient {
 
 impl ScmClient {
     pub fn new(base_url: &str, service_token: Option<String>) -> Self {
+        // The deployment sources this from `scm_callers`, which is a
+        // comma-separated inbound allowlist. Outbound calls must present a
+        // single caller token.
+        let service_token = service_token
+            .map(|raw| {
+                raw.split(',')
+                    .map(str::trim)
+                    .find(|token| !token.is_empty())
+                    .unwrap_or("")
+                    .to_string()
+            })
+            .filter(|token| !token.is_empty());
         Self {
             http: reqwest::Client::new(),
             base_url: base_url.trim_end_matches('/').to_string(),
