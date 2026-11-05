@@ -65,17 +65,13 @@ spec:
           ports:
             - containerPort: 3010
           livenessProbe:
-            httpGet:
-              path: /health
+            tcpSocket:
               port: 3010
-              scheme: HTTPS
             initialDelaySeconds: 5
             periodSeconds: 10
           readinessProbe:
-            httpGet:
-              path: /health
+            tcpSocket:
               port: 3010
-              scheme: HTTPS
             initialDelaySeconds: 3
             periodSeconds: 5
           resources:
