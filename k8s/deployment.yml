@@ -40,8 +40,14 @@ spec:
               value: "0.0.0.0:3010"
             - name: HARLIE_GIT_PROXY_SCM_URL
               value: "http://harlie-scm:3009"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: harlie-secrets
+                  key: redis_password
+
             - name: HARLIE_GIT_PROXY_REDIS_URL
-              value: "redis://redis:6379"
+              value: "redis://:$(REDIS_PASSWORD)@redis:6379"
             - name: HARLIE_GIT_PROXY_SCM_TOKEN
               valueFrom:
                 secretKeyRef:
